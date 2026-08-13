@@ -185,7 +185,7 @@ function AdminProducts() {
                   <SelectItem value="none">Uncategorised</SelectItem>
                   {(categories ?? []).map((c) => (
                     <SelectItem key={c.id} value={c.id}>
-                      {c.name}
+                      {c.name_en}
                     </SelectItem>
                   ))}
                 </SelectContent>

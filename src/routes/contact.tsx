@@ -14,7 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 
 import { useI18n } from "@/lib/i18n";
-import { contentQuery } from "@/lib/store";
+import { useSiteContent } from "@/lib/site-content";
 
 export const Route = createFileRoute("/contact")({
   head: () => ({
@@ -54,7 +54,7 @@ type ContactBlock = {
 
 function ContactPage() {
   const { t, lang } = useI18n();
-  const { data: content } = useQuery(contentQuery);
+  const content = useSiteContent();
   // Address, phone and hours are owner-editable, so the page reads them
   // instead of carrying its own copy.
   const info = ((content?.["contact"] ?? {}) as ContactBlock) ?? {};

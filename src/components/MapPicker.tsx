@@ -41,6 +41,12 @@ export function MapPicker({
 }: Props) {
   const [zoom, setZoom] = useState(initialZoom);
   const [size, setSize] = useState({ w: 640, h: 320 });
+  // Tiles are positioned from the box's measured width, which only exists in
+  // a browser. Rendering them on the server produced coordinates computed
+  // from a guessed 640px, and the real measurement moved every tile a
+  // fraction of a pixel — React reported a mismatch on all sixteen of them.
+  // The map is a browser widget; it now starts once there is a box to measure.
+  const [measured, setMeasured] = useState(false);
   const [dragging, setDragging] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const dragState = useRef<{ x: number; y: number; lat: number; lng: number } | null>(null);
@@ -48,7 +54,10 @@ export function MapPicker({
   useEffect(() => {
     const node = containerRef.current;
     if (!node) return;
-    const update = () => setSize({ w: node.clientWidth, h: node.clientHeight });
+    const update = () => {
+      setSize({ w: node.clientWidth, h: node.clientHeight });
+      setMeasured(true);
+    };
     update();
     const ro = new ResizeObserver(update);
     ro.observe(node);
@@ -129,16 +138,18 @@ export function MapPicker({
           readOnly ? "cursor-default" : dragging ? "cursor-grabbing" : "cursor-grab",
         )}
       >
-        {tiles.map((tile) => (
-          <img
-            key={tile.key}
-            src={tile.url}
-            alt=""
-            draggable={false}
-            className="pointer-events-none absolute h-64 w-64"
-            style={{ left: tile.left, top: tile.top }}
-          />
-        ))}
+        {measured
+          ? tiles.map((tile) => (
+              <img
+                key={tile.key}
+                src={tile.url}
+                alt=""
+                draggable={false}
+                className="pointer-events-none absolute h-64 w-64"
+                style={{ left: tile.left, top: tile.top }}
+              />
+            ))
+          : null}
 
         <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-full">
           <MapPin className="h-10 w-10 text-primary drop-shadow-lg" strokeWidth={2.5} />

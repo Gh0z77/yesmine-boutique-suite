@@ -1,4 +1,3 @@
-import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Instagram, Mail, MapPin, Phone, Send } from "lucide-react";
 import { useState } from "react";
@@ -10,13 +9,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
-import { contentQuery } from "@/lib/store";
+import { useSiteContent } from "@/lib/site-content";
 
 export function Footer() {
   const { t, lang } = useI18n();
-  const { data: content } = useQuery(contentQuery);
   // Same block the contact page reads, so the two can never disagree again.
-  const info = (content?.["contact"] ?? {}) as Record<string, unknown>;
+  const info = (useSiteContent()["contact"] ?? {}) as Record<string, unknown>;
   const phone = (info["phone"] as string) ?? "";
   const email_address = (info["email"] as string) ?? "";
   // Ijtimoiy tarmoq havolalari ham admindan keladi.

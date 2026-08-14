@@ -16,6 +16,8 @@ import { Header } from "@/components/Header";
 import { Toaster } from "@/components/ui/sonner";
 import { CartProvider } from "@/lib/cart";
 import { I18nProvider } from "@/lib/i18n";
+import { readLang } from "@/lib/lang-cookie";
+import { contentQuery } from "@/lib/store";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
@@ -81,6 +83,17 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
 }
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
+  // The language comes from the request cookie so the server renders in the
+  // visitor's own language instead of English-then-swap.
+  //
+  // The site content is loaded here rather than per page because the footer
+  // reads the shop's phone number from it. Left to a page loader, the server
+  // had the number and the browser did not yet — the footer rendered one way
+  // then the other, and React threw the whole page away mid-hydration.
+  loader: async ({ context }) => ({
+    lang: readLang(),
+    content: await context.queryClient.ensureQueryData(contentQuery),
+  }),
   head: () => ({
     meta: [
       { charSet: "utf-8" },
@@ -156,10 +169,11 @@ function StoreChrome({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const { lang } = Route.useLoaderData();
 
   return (
     <QueryClientProvider client={queryClient}>
-      <I18nProvider>
+      <I18nProvider initialLang={lang}>
         <CartProvider>
           <StoreChrome>
             {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}

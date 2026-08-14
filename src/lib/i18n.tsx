@@ -10,6 +10,7 @@ import {
 } from "react";
 
 import { supabase } from "@/integrations/supabase/client";
+import { writeLangCookie } from "@/lib/lang-cookie";
 
 export type Lang = "en" | "ru" | "uz";
 export const LANGS: { code: Lang; label: string }[] = [
@@ -521,18 +522,30 @@ type Ctx = {
 const I18nContext = createContext<Ctx | null>(null);
 const STORAGE_KEY = "yesmine.lang";
 
-export function I18nProvider({ children }: { children: ReactNode }) {
-  const [lang, setLangState] = useState<Lang>("en");
-
-  useEffect(() => {
-    const saved = window.localStorage.getItem(STORAGE_KEY) as Lang | null;
-    if (saved && LANGS.some((l) => l.code === saved)) setLangState(saved);
-  }, []);
+export function I18nProvider({
+  children,
+  initialLang = "en",
+}: {
+  children: ReactNode;
+  /** Read from the request cookie, so the server renders the right language. */
+  initialLang?: Lang;
+}) {
+  const [lang, setLangState] = useState<Lang>(initialLang);
 
   const setLang = useCallback((l: Lang) => {
     setLangState(l);
+    writeLangCookie(l);
+    // Kept in step for anything still reading the old key.
     window.localStorage.setItem(STORAGE_KEY, l);
   }, []);
+
+  // A visitor who chose a language before cookies were used still has it in
+  // localStorage; move it across once so their choice is not lost.
+  useEffect(() => {
+    if (document.cookie.includes(`${STORAGE_KEY}=`)) return;
+    const saved = window.localStorage.getItem(STORAGE_KEY) as Lang | null;
+    if (saved && LANGS.some((l) => l.code === saved) && saved !== lang) setLang(saved);
+  }, [lang, setLang]);
 
   const { data: remote } = useQuery({
     queryKey: ["translations"],

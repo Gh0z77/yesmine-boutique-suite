@@ -4,6 +4,7 @@ import { MapPin } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { MapPicker } from "@/components/MapPicker";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -96,8 +97,7 @@ function AdminOrders() {
                   >
                     <p className="font-medium">{o.order_number}</p>
                     <p className="text-sm text-muted-foreground">
-                      {o.customer_name} · {o.phone} ·{" "}
-                      {new Date(o.created_at).toLocaleDateString()}
+                      {o.customer_name} · {o.phone} · {new Date(o.created_at).toLocaleDateString()}
                     </p>
                   </button>
                   <span className="ml-auto font-display text-xl text-primary">
@@ -119,23 +119,41 @@ function AdminOrders() {
 
                 {expanded ? (
                   <div className="mt-5 grid gap-5 border-t pt-5 sm:grid-cols-2">
-                    <div className="space-y-2 text-sm">
+                    <div className="space-y-3 text-sm">
                       <p className="font-medium">Delivery</p>
                       <p className="text-muted-foreground">{o.address}</p>
-                      {o.lat && o.lng ? (
-                        <a
-                          className="inline-flex items-center gap-1.5 text-primary hover:underline"
-                          href={`https://www.openstreetmap.org/?mlat=${o.lat}&mlon=${o.lng}#map=16/${o.lat}/${o.lng}`}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          <MapPin className="h-3.5 w-3.5" /> {o.lat.toFixed(4)}, {o.lng.toFixed(4)}
-                        </a>
-                      ) : null}
+                      {o.email ? <p className="text-muted-foreground">{o.email}</p> : null}
                       {o.note ? <p className="text-muted-foreground">Note: {o.note}</p> : null}
                       <p className="text-muted-foreground">
                         Payment: {o.payment_status} {o.payment_ref ? `(${o.payment_ref})` : ""}
                       </p>
+                      <p className="text-muted-foreground">
+                        Placed {new Date(o.created_at).toLocaleString()}
+                      </p>
+
+                      {o.lat !== null && o.lng !== null ? (
+                        <div className="space-y-2">
+                          <p className="font-medium">Pinned delivery point</p>
+                          <MapPicker
+                            lat={o.lat}
+                            lng={o.lng}
+                            onChange={() => {}}
+                            readOnly
+                            initialZoom={15}
+                          />
+                          <a
+                            className="inline-flex items-center gap-1.5 text-primary hover:underline"
+                            href={`https://www.openstreetmap.org/?mlat=${o.lat}&mlon=${o.lng}#map=17/${o.lat}/${o.lng}`}
+                            target="_blank"
+                            rel="noreferrer noopener"
+                          >
+                            <MapPin className="h-3.5 w-3.5" /> Open in maps ({o.lat.toFixed(5)},{" "}
+                            {o.lng.toFixed(5)})
+                          </a>
+                        </div>
+                      ) : (
+                        <p className="text-muted-foreground">No map location was recorded.</p>
+                      )}
                     </div>
                     <div className="space-y-2 text-sm">
                       <p className="font-medium">Items</p>

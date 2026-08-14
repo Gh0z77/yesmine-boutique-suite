@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# Runs the Supabase CLI with THIS project's own access token.
+#
+# `supabase login` stores one token for the whole machine, so logging into a
+# second project kicks you out of the first. Reading the token from the
+# project's .env.local instead means every project keeps its own, and you never
+# log in or out again.
+#
+#   ./sb projects list
+#   ./sb db query --linked "select 1"
+#   ./sb db query --linked -f supabase/migrations/whatever.sql
+set -euo pipefail
+
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+envfile="$here/.env.local"
+
+if [ ! -f "$envfile" ]; then
+  echo "sb: $envfile not found — create it and put SUPABASE_ACCESS_TOKEN in it." >&2
+  exit 1
+fi
+
+# tr strips the CR that Windows editors leave behind, which would otherwise
+# become part of the token and produce a confusing 401.
+token="$(tr -d '\r' < "$envfile" | sed -n 's/^SUPABASE_ACCESS_TOKEN=//p' | tr -d '"'"'"'' | head -1)"
+
+if [ -z "$token" ]; then
+  echo "sb: SUPABASE_ACCESS_TOKEN is empty in $envfile" >&2
+  echo "    Create one at https://supabase.com/dashboard/account/tokens" >&2
+  exit 1
+fi
+
+SUPABASE_ACCESS_TOKEN="$token" exec supabase "$@"

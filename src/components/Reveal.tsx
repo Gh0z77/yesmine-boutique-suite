@@ -9,39 +9,63 @@ type Props = {
   as?: "div" | "section" | "li" | "article";
 };
 
-/** Fades and slides content in the first time it scrolls into view. */
+/**
+ * Fades content in as it scrolls into view.
+ *
+ * It renders VISIBLE by default. The previous version started at opacity 0 and
+ * only revealed itself once React had hydrated and IntersectionObserver had
+ * fired — so the server sent a complete page that the browser painted blank
+ * for as long as the JavaScript took to arrive. Everything above the fold now
+ * shows immediately; only elements that start below the fold are hidden (after
+ * mount, where nobody can see the switch) and animate on approach.
+ */
 export function Reveal({ children, className, delay = 0, as = "div" }: Props) {
   const ref = useRef<HTMLElement | null>(null);
-  const [shown, setShown] = useState(false);
+  const [state, setState] = useState<"static" | "hidden" | "shown">("static");
 
   useEffect(() => {
-    const node = ref.current;
-    if (!node) return;
-    if (typeof IntersectionObserver === "undefined") {
-      setShown(true);
-      return;
-    }
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) {
-            setShown(true);
-            observer.disconnect();
-          }
-        }
-      },
-      { threshold: 0.12, rootMargin: "0px 0px -40px 0px" },
-    );
-    observer.observe(node);
-    return () => observer.disconnect();
+    if (typeof IntersectionObserver === "undefined") return;
+
+    let observer: IntersectionObserver | undefined;
+    // Two frames, so stylesheets and layout have settled before we measure —
+    // reading position too early puts every section "above the fold" and no
+    // animation ever runs.
+    const frame = window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        const node = ref.current;
+        if (!node) return;
+
+        // Already on screen: leave it alone rather than hide it and fade back in.
+        if (node.getBoundingClientRect().top < window.innerHeight * 0.9) return;
+
+        setState("hidden");
+        observer = new IntersectionObserver(
+          (entries) => {
+            for (const entry of entries) {
+              if (entry.isIntersecting) {
+                setState("shown");
+                observer?.disconnect();
+              }
+            }
+          },
+          { threshold: 0.12, rootMargin: "0px 0px -40px 0px" },
+        );
+        observer.observe(node);
+      });
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      observer?.disconnect();
+    };
   }, []);
 
   const Tag = as as "div";
   return (
     <Tag
       ref={ref as React.Ref<HTMLDivElement>}
-      style={{ transitionDelay: `${delay}ms` }}
-      className={cn("reveal", shown && "reveal-in", className)}
+      style={state === "static" ? undefined : { transitionDelay: `${delay}ms` }}
+      className={cn(state !== "static" && "reveal", state === "shown" && "reveal-in", className)}
     >
       {children}
     </Tag>

@@ -1,4 +1,4 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { Menu, Search, ShoppingBag, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -16,6 +16,7 @@ export function Header() {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [term, setTerm] = useState("");
+  const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const onShop = pathname.startsWith("/shop");
 
@@ -42,17 +43,19 @@ export function Header() {
         scrolled ? "glass shadow-soft" : "bg-transparent",
       )}
     >
-      <div className="mx-auto flex h-20 max-w-7xl items-center gap-4 px-4 sm:px-6">
+      {/* Equal 1fr side columns, so the middle one lands on the header's true
+          centre no matter how wide the logo or the action cluster get. */}
+      <div className="mx-auto grid h-20 max-w-7xl grid-cols-[1fr_auto_1fr] items-center gap-4 px-4 sm:px-6">
         <Link to="/" className="shrink-0">
           <Logo />
         </Link>
 
-        <nav className="ml-6 hidden items-center gap-7 text-sm font-medium lg:flex">
+        <nav className="hidden items-center justify-center gap-9 text-base font-medium tracking-wide lg:flex">
           {links.map((l) => (
             <Link
               key={l.to}
               to={l.to}
-              className="relative text-foreground/80 transition-colors hover:text-primary"
+              className="relative text-foreground/85 transition-colors hover:text-primary"
               activeProps={{ className: "text-primary" }}
               activeOptions={{ exact: l.to === "/" }}
             >
@@ -61,15 +64,14 @@ export function Header() {
           ))}
         </nav>
 
-        <div className="ml-auto flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center justify-end gap-2 sm:gap-3">
           {onShop ? (
             <form
               className="hidden items-center md:flex"
               onSubmit={(e) => {
                 e.preventDefault();
-                const url = `/shop?q=${encodeURIComponent(term.trim())}`;
-                window.history.pushState({}, "", url);
-                window.dispatchEvent(new PopStateEvent("popstate"));
+                const q = term.trim();
+                void navigate({ to: "/shop", search: (prev) => ({ ...prev, q: q || undefined }) });
               }}
             >
               <div className="relative">
@@ -85,7 +87,7 @@ export function Header() {
             </form>
           ) : null}
 
-          <LanguageSwitcher className="hidden sm:flex" />
+          <LanguageSwitcher />
 
           <button
             type="button"
@@ -127,7 +129,6 @@ export function Header() {
                 {l.label}
               </Link>
             ))}
-            <LanguageSwitcher className="mt-2 w-fit sm:hidden" />
           </nav>
         </div>
       ) : null}

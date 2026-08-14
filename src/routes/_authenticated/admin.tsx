@@ -1,12 +1,25 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, Outlet, useNavigate } from "@tanstack/react-router";
-import { LayoutDashboard, LogOut, Package, ScrollText, ShoppingBag, Sparkles } from "lucide-react";
+import {
+  LayoutDashboard,
+  LogOut,
+  Package,
+  ScrollText,
+  Settings,
+  ShoppingBag,
+  Sparkles,
+  Contact,
+  Inbox,
+  Tags,
+  Users,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import { profileQuery } from "@/lib/profile";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   component: AdminLayout,
@@ -15,8 +28,13 @@ export const Route = createFileRoute("/_authenticated/admin")({
 const NAV = [
   { to: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { to: "/admin/products", label: "Products", icon: Package, exact: false },
+  { to: "/admin/categories", label: "Categories", icon: Tags, exact: false },
   { to: "/admin/orders", label: "Orders", icon: ShoppingBag, exact: false },
   { to: "/admin/content", label: "Content", icon: ScrollText, exact: false },
+  { to: "/admin/inbox", label: "Inbox", icon: Inbox, exact: false },
+  { to: "/admin/payments", label: "Sozlamalar", icon: Settings, exact: false },
+  { to: "/admin/staff", label: "Xodimlar", icon: Contact, exact: false },
+  { to: "/admin/team", label: "Team", icon: Users, exact: false },
 ] as const;
 
 function AdminLayout() {
@@ -48,6 +66,14 @@ function AdminLayout() {
     },
   });
 
+  // A signed-in employee who isn't the owner belongs in their own cabinet, not
+  // on a "claim admin" screen they can never satisfy.
+  const { data: profile } = useQuery({ ...profileQuery, enabled: isAdmin === false });
+
+  useEffect(() => {
+    if (isAdmin === false && profile?.employee_id) navigate({ to: "/panel", replace: true });
+  }, [isAdmin, profile, navigate]);
+
   useEffect(() => {
     const { data } = supabase.auth.onAuthStateChange((event) => {
       if (event === "SIGNED_OUT") navigate({ to: "/auth", replace: true });
@@ -74,7 +100,7 @@ function AdminLayout() {
       toast.success("You are now the store admin.");
       void refetch();
     } else {
-      toast.error("An admin already exists for this store.");
+      toast.error("This email isn't on the studio allow list.");
     }
   };
 
@@ -93,8 +119,9 @@ function AdminLayout() {
           <Sparkles className="mx-auto h-8 w-8 text-primary" />
           <h1 className="mt-4 font-display text-2xl">Studio access required</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Your account ({session?.email}) isn't an admin yet. If this is a fresh store, claim the
-            first admin seat.
+            {session?.email} hisobida studio huquqi yo'q. Agar siz do'kon egasi bo'lsangiz, admin
+            o'rnini egallang. Xodim bo'lsangiz — rahbaringiz sizni Xodimlar bo'limiga qo'shishi
+            kerak, shundan keyin bu sahifa avtomatik o'z kabinetingizga o'tadi.
           </p>
           <div className="mt-6 flex flex-wrap justify-center gap-2">
             <Button variant="hero" disabled={claiming} onClick={claim}>
@@ -122,7 +149,9 @@ function AdminLayout() {
               to={item.to}
               activeOptions={{ exact: item.exact }}
               activeProps={{ className: "bg-brand-gradient text-on-brand shadow-soft" }}
-              inactiveProps={{ className: "text-muted-foreground hover:bg-accent hover:text-primary" }}
+              inactiveProps={{
+                className: "text-muted-foreground hover:bg-accent hover:text-primary",
+              }}
               className="flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-all"
             >
               <item.icon className="h-4 w-4" /> {item.label}

@@ -85,17 +85,17 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Yesmine — Womenswear in rose silk & soft wool" },
+      { title: "Yesmine — pushti ipak va yumshoq jundagi ayollar kiyimi" },
       {
         name: "description",
         content:
           "Yesmine is a small-run womenswear house: rose silk dresses, soft wool coats and hand-finished accessories.",
       },
       { name: "author", content: "Yesmine" },
-      { property: "og:title", content: "Yesmine — Womenswear in rose silk & soft wool" },
+      { property: "og:title", content: "Yesmine — pushti ipak va yumshoq jundagi ayollar kiyimi" },
       {
         property: "og:description",
-        content: "Small-run dresses, coats and accessories, finished by hand.",
+        content: "Kichik partiyalarda tikilgan, qo'lda pardozlangan ko'ylak, palto va aksessuarlar.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -104,11 +104,18 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "stylesheet", href: appCss },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
+      // Trimmed to the weights actually used: the italic axis and the 800 end of
+      // Playfair, plus Inter's 300 and 700 extremes, were pure download weight.
       {
         rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..800;1,400..700&family=Inter:wght@300..700&family=Great+Vibes&display=swap",
+        href: "https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400..700&family=Inter:wght@400..600&family=Great+Vibes&display=swap",
       },
-      { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+      // The .ico covers old browsers; the 32px PNG is what modern ones pick.
+      // The Apple icon is used when someone saves the shop to their home screen.
+      { rel: "icon", href: "/favicon.ico", sizes: "any" },
+      { rel: "icon", href: "/favicon-32.png", type: "image/png", sizes: "32x32" },
+      { rel: "apple-touch-icon", href: "/apple-touch-icon.png", sizes: "180x180" },
+      { rel: "manifest", href: "/site.webmanifest" },
     ],
   }),
   shellComponent: RootShell,

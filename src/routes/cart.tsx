@@ -1,18 +1,21 @@
+import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Minus, Plus, ShoppingBag, Trash2 } from "lucide-react";
 
 import { Reveal } from "@/components/Reveal";
 import { Button } from "@/components/ui/button";
 import { formatPrice, itemKey, useCart } from "@/lib/cart";
+import { imageSrc, imageSrcSet, THUMB_WIDTHS } from "@/lib/images";
 import { useI18n } from "@/lib/i18n";
+import { shippingFor, shopSettingsQuery } from "@/lib/store";
 
 export const Route = createFileRoute("/cart")({
   head: () => ({
     meta: [
-      { title: "Your cart — Yesmine" },
-      { name: "description", content: "Review the pieces in your Yesmine cart before checkout." },
-      { property: "og:title", content: "Your cart — Yesmine" },
-      { property: "og:description", content: "Review your selected Yesmine pieces." },
+      { title: "Savatingiz — Yesmine" },
+      { name: "description", content: "Buyurtma berishdan oldin savatdagi buyumlarni ko'rib chiqing." },
+      { property: "og:title", content: "Savatingiz — Yesmine" },
+      { property: "og:description", content: "Tanlangan buyumlaringizni ko'rib chiqing." },
       { name: "robots", content: "noindex" },
     ],
   }),
@@ -22,7 +25,8 @@ export const Route = createFileRoute("/cart")({
 function CartPage() {
   const { items, subtotal, setQuantity, remove } = useCart();
   const { t } = useI18n();
-  const shipping = subtotal > 200 || subtotal === 0 ? 0 : 15;
+  const { data: settings } = useQuery(shopSettingsQuery);
+  const shipping = settings ? shippingFor(subtotal, settings) : 0;
 
   return (
     <div className="relative">
@@ -51,7 +55,11 @@ function CartPage() {
                     className="flex flex-col gap-4 rounded-3xl border bg-card p-4 shadow-soft sm:flex-row"
                   >
                     <img
-                      src={item.image ?? ""}
+                      src={imageSrc(item.image, 240)}
+                      srcSet={imageSrcSet(item.image, THUMB_WIDTHS)}
+                      sizes="128px"
+                      loading="lazy"
+                      decoding="async"
                       alt={item.name}
                       className="h-40 w-32 shrink-0 rounded-2xl object-cover"
                     />
@@ -110,20 +118,22 @@ function CartPage() {
             </div>
 
             <aside className="h-fit space-y-4 rounded-3xl border bg-card p-6 shadow-soft lg:sticky lg:top-24">
-              <h2 className="font-display text-2xl">Summary</h2>
+              <h2 className="font-display text-2xl">{t("cart.summary")}</h2>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">{t("cart.subtotal")}</span>
                   <span>{formatPrice(subtotal)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Shipping</span>
-                  <span>{shipping === 0 ? "Free" : formatPrice(shipping)}</span>
+                  <span className="text-muted-foreground">{t("cart.shipping")}</span>
+                  <span>{shipping === 0 ? t("cart.free") : formatPrice(shipping)}</span>
                 </div>
               </div>
               <div className="flex items-baseline justify-between border-t pt-4">
-                <span className="font-medium">Total</span>
-                <span className="font-display text-2xl text-primary">{formatPrice(subtotal + shipping)}</span>
+                <span className="font-medium">{t("cart.total")}</span>
+                <span className="font-display text-2xl text-primary">
+                  {formatPrice(subtotal + shipping)}
+                </span>
               </div>
               <Button variant="hero" size="lg" className="w-full" asChild>
                 <Link to="/checkout">{t("common.checkout")}</Link>

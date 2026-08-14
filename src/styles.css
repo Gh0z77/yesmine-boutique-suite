@@ -191,14 +191,26 @@
   border: 1px solid oklch(1 0 0 / 0.22);
 }
 
-/* Soft blurred mesh blobs used behind hero panels */
+/*
+ * Soft mesh blobs behind hero panels.
+ *
+ * These used to be `filter: blur(70px)` on 26–28rem circles, animated forever.
+ * A CSS filter that size forces the compositor to re-blur a huge surface every
+ * frame, which is what made scrolling feel heavy on phones. A radial gradient
+ * paints the same soft cloud with no filter pass at all.
+ */
 @utility mesh-blob {
   position: absolute;
   border-radius: 9999px;
-  filter: blur(70px);
-  opacity: 0.55;
+  background-image: radial-gradient(
+    closest-side,
+    color-mix(in oklch, currentColor 70%, transparent),
+    transparent 100%
+  );
+  opacity: 0.5;
   pointer-events: none;
   will-change: transform;
+  contain: paint;
 }
 
 @utility tilt-card {

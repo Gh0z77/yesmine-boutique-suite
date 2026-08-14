@@ -8,11 +8,33 @@ import { ProductCard } from "@/components/ProductCard";
 import { Reveal } from "@/components/Reveal";
 import { Button } from "@/components/ui/button";
 import { formatPrice, useCart } from "@/lib/cart";
+import { CARD_WIDTHS, HERO_WIDTHS, imageSrc, imageSrcSet, THUMB_WIDTHS } from "@/lib/images";
 import { useI18n } from "@/lib/i18n";
-import { productBySlugQuery, productImage, productsQuery } from "@/lib/store";
+import { shopSettingsQuery } from "@/lib/store";
+import {
+  productBySlugQuery,
+  productDescription,
+  productImage,
+  productName,
+  productsQuery,
+  stockForColor,
+  stockForSize,
+  variantsQuery,
+  variantStock,
+} from "@/lib/store";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/shop/$productSlug")({
+  loader: async ({ context, params }) => {
+    const [product, products] = await Promise.all([
+      context.queryClient.ensureQueryData(productBySlugQuery(params.productSlug)),
+      context.queryClient.ensureQueryData(productsQuery),
+    ]);
+    const variants = product
+      ? await context.queryClient.ensureQueryData(variantsQuery(product.id))
+      : [];
+    return { product, products, variants };
+  },
   head: ({ params }) => {
     const name = params.productSlug
       .split("-")
@@ -21,7 +43,10 @@ export const Route = createFileRoute("/shop/$productSlug")({
     return {
       meta: [
         { title: `${name} — Yesmine` },
-        { name: "description", content: `${name} from the Yesmine atelier. Small-run womenswear, finished by hand.` },
+        {
+          name: "description",
+          content: `${name} from the Yesmine atelier. Small-run womenswear, finished by hand.`,
+        },
         { property: "og:title", content: `${name} — Yesmine` },
         { property: "og:description", content: `${name} from the Yesmine atelier.` },
       ],
@@ -32,10 +57,20 @@ export const Route = createFileRoute("/shop/$productSlug")({
 
 function ProductDetail() {
   const { productSlug } = Route.useParams();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const { add } = useCart();
-  const { data: product, isLoading } = useQuery(productBySlugQuery(productSlug));
-  const { data: products } = useQuery(productsQuery);
+  const seed = Route.useLoaderData();
+  const { data: product, isLoading } = useQuery({
+    ...productBySlugQuery(productSlug),
+    initialData: seed.product,
+  });
+  const { data: products } = useQuery({ ...productsQuery, initialData: seed.products });
+  const { data: settings } = useQuery(shopSettingsQuery);
+  const { data: variants = [] } = useQuery({
+    ...variantsQuery(seed.product?.id ?? ""),
+    initialData: seed.variants,
+    enabled: Boolean(seed.product?.id),
+  });
 
   const [imageIndex, setImageIndex] = useState(0);
   const [size, setSize] = useState<string | null>(null);
@@ -60,8 +95,8 @@ function ProductDetail() {
   if (!product) {
     return (
       <div className="mx-auto max-w-xl px-4 py-32 text-center">
-        <h1 className="font-display text-3xl">Piece not found</h1>
-        <p className="mt-3 text-muted-foreground">This item may have sold out or been retired.</p>
+        <h1 className="font-display text-3xl">{t("shop.notFound")}</h1>
+        <p className="mt-3 text-muted-foreground">{t("shop.notFoundBody")}</p>
         <Button variant="hero" className="mt-6" asChild>
           <Link to="/shop">{t("nav.shop")}</Link>
         </Button>
@@ -69,14 +104,22 @@ function ProductDetail() {
     );
   }
 
+  const title = productName(product, lang);
+  const description = productDescription(product, lang);
   const images = product.images.length > 0 ? product.images : [productImage(product)];
-  const soldOut = product.stock <= 0;
   const related = (products ?? [])
     .filter((p) => p.id !== product.id && p.category_id === product.category_id)
     .slice(0, 4);
 
-  const activeSize = size ?? product.sizes[0] ?? null;
-  const activeColor = color ?? product.colors[0] ?? null;
+  // Land on something the shopper can actually buy: the first combination
+  // with stock, rather than whichever size happens to be listed first.
+  const inStock = variants.find((v) => v.stock > 0);
+  const activeSize = size ?? inStock?.size ?? product.sizes[0] ?? null;
+  const activeColor = color ?? inStock?.color ?? product.colors[0] ?? null;
+
+  // Stock is per size + colour now, so the whole page reacts to the selection.
+  const selectedStock = variantStock(variants, activeSize, activeColor);
+  const soldOut = selectedStock <= 0;
 
   return (
     <div className="relative">
@@ -93,8 +136,12 @@ function ProductDetail() {
           <Reveal className="space-y-4">
             <div className="overflow-hidden rounded-[2rem] bg-muted shadow-elegant">
               <img
-                src={images[imageIndex] ?? images[0]}
-                alt={product.name}
+                src={imageSrc(images[imageIndex] ?? images[0], 900)}
+                srcSet={imageSrcSet(images[imageIndex] ?? images[0], HERO_WIDTHS)}
+                sizes="(min-width: 1024px) 45vw, 92vw"
+                alt={title}
+                fetchPriority="high"
+                decoding="async"
                 className="aspect-4/5 w-full object-cover"
               />
             </div>
@@ -107,10 +154,20 @@ function ProductDetail() {
                     onClick={() => setImageIndex(i)}
                     className={cn(
                       "h-24 w-20 overflow-hidden rounded-xl border-2 transition-all",
-                      i === imageIndex ? "border-primary" : "border-transparent opacity-70 hover:opacity-100",
+                      i === imageIndex
+                        ? "border-primary"
+                        : "border-transparent opacity-70 hover:opacity-100",
                     )}
                   >
-                    <img src={src} alt={`${product.name} view ${i + 1}`} className="h-full w-full object-cover" />
+                    <img
+                      src={imageSrc(src, 160)}
+                      srcSet={imageSrcSet(src, THUMB_WIDTHS)}
+                      sizes="80px"
+                      alt={`${title} — ${i + 1}`}
+                      loading="lazy"
+                      decoding="async"
+                      className="h-full w-full object-cover"
+                    />
                   </button>
                 ))}
               </div>
@@ -119,7 +176,7 @@ function ProductDetail() {
 
           <Reveal delay={100} className="space-y-7">
             <div className="space-y-3">
-              <h1 className="font-display text-4xl leading-tight sm:text-5xl">{product.name}</h1>
+              <h1 className="font-display text-4xl leading-tight sm:text-5xl">{title}</h1>
               <div className="flex items-baseline gap-3">
                 <span className="font-display text-3xl text-primary">
                   {formatPrice(Number(product.price))}
@@ -137,54 +194,76 @@ function ProductDetail() {
                 )}
               >
                 <Check className="h-3.5 w-3.5" />
-                {soldOut ? t("shop.outOfStock") : `${t("shop.inStock")} — ${product.stock}`}
+                {soldOut
+                  ? product.stock > 0
+                    ? t("shop.variantOut")
+                    : t("shop.outOfStock")
+                  : `${t("shop.inStock")} — ${selectedStock}`}
               </p>
             </div>
 
-            <p className="text-lg leading-relaxed text-muted-foreground">{product.description}</p>
+            <p className="text-lg leading-relaxed text-muted-foreground">{description}</p>
 
             {product.sizes.length > 0 ? (
               <div className="space-y-2">
-                <p className="text-sm font-semibold uppercase tracking-widest text-primary">{t("shop.size")}</p>
+                <p className="text-sm font-semibold uppercase tracking-widest text-primary">
+                  {t("shop.size")}
+                </p>
                 <div className="flex flex-wrap gap-2">
-                  {product.sizes.map((s) => (
-                    <button
-                      key={s}
-                      type="button"
-                      onClick={() => setSize(s)}
-                      className={cn(
-                        "min-w-12 rounded-full border px-4 py-2 text-sm transition-all",
-                        activeSize === s
-                          ? "border-transparent bg-brand-gradient text-on-brand shadow-soft"
-                          : "border-border hover:border-primary/50 hover:text-primary",
-                      )}
-                    >
-                      {s}
-                    </button>
-                  ))}
+                  {product.sizes.map((s) => {
+                    const available = stockForSize(variants, s) > 0;
+                    return (
+                      <button
+                        key={s}
+                        type="button"
+                        disabled={!available}
+                        title={available ? undefined : t("shop.outOfStock")}
+                        onClick={() => setSize(s)}
+                        className={cn(
+                          "min-w-12 rounded-full border px-4 py-2 text-sm transition-all",
+                          activeSize === s
+                            ? "border-transparent bg-brand-gradient text-on-brand shadow-soft"
+                            : "border-border hover:border-primary/50 hover:text-primary",
+                          !available &&
+                            "cursor-not-allowed border-dashed text-muted-foreground/50 line-through hover:border-border hover:text-muted-foreground/50",
+                        )}
+                      >
+                        {s}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             ) : null}
 
             {product.colors.length > 0 ? (
               <div className="space-y-2">
-                <p className="text-sm font-semibold uppercase tracking-widest text-primary">{t("shop.color")}</p>
+                <p className="text-sm font-semibold uppercase tracking-widest text-primary">
+                  {t("shop.color")}
+                </p>
                 <div className="flex flex-wrap gap-2">
-                  {product.colors.map((c) => (
-                    <button
-                      key={c}
-                      type="button"
-                      onClick={() => setColor(c)}
-                      className={cn(
-                        "rounded-full border px-4 py-2 text-sm transition-all",
-                        activeColor === c
-                          ? "border-transparent bg-brand-gradient text-on-brand shadow-soft"
-                          : "border-border hover:border-primary/50 hover:text-primary",
-                      )}
-                    >
-                      {c}
-                    </button>
-                  ))}
+                  {product.colors.map((c) => {
+                    const available = stockForColor(variants, c) > 0;
+                    return (
+                      <button
+                        key={c}
+                        type="button"
+                        disabled={!available}
+                        title={available ? undefined : t("shop.outOfStock")}
+                        onClick={() => setColor(c)}
+                        className={cn(
+                          "rounded-full border px-4 py-2 text-sm transition-all",
+                          activeColor === c
+                            ? "border-transparent bg-brand-gradient text-on-brand shadow-soft"
+                            : "border-border hover:border-primary/50 hover:text-primary",
+                          !available &&
+                            "cursor-not-allowed border-dashed text-muted-foreground/50 line-through hover:border-border hover:text-muted-foreground/50",
+                        )}
+                      >
+                        {c}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             ) : null}
@@ -203,7 +282,7 @@ function ProductDetail() {
                 <button
                   type="button"
                   className="flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:bg-accent"
-                  onClick={() => setQuantity((q) => Math.min(product.stock || 99, q + 1))}
+                  onClick={() => setQuantity((q) => Math.min(Math.max(1, selectedStock), q + 1))}
                   aria-label="Increase quantity"
                 >
                   <Plus className="h-4 w-4" />
@@ -220,7 +299,7 @@ function ProductDetail() {
                     {
                       productId: product.id,
                       slug: product.slug,
-                      name: product.name,
+                      name: title,
                       price: Number(product.price),
                       image: images[0] ?? null,
                       size: activeSize,
@@ -228,7 +307,7 @@ function ProductDetail() {
                     },
                     quantity,
                   );
-                  toast.success(`${product.name} — ${t("common.addToCart")}`);
+                  toast.success(`${title} — ${t("common.addToCart")}`);
                 }}
               >
                 <ShoppingBag className="mr-1.5 h-4 w-4" /> {t("common.addToCart")}
@@ -237,10 +316,11 @@ function ProductDetail() {
 
             <div className="grid gap-3 rounded-3xl border bg-card p-5 text-sm text-muted-foreground sm:grid-cols-2">
               <span className="flex items-center gap-2">
-                <Truck className="h-4 w-4 text-primary" /> Free delivery over $200
+                <Truck className="h-4 w-4 text-primary" /> {t("shop.freeDeliveryOver")}{" "}
+                {formatPrice(settings?.free_shipping_over ?? 1000000)}
               </span>
               <span className="flex items-center gap-2">
-                <ShieldCheck className="h-4 w-4 text-primary" /> 14-day easy returns
+                <ShieldCheck className="h-4 w-4 text-primary" /> {t("shop.returns")}
               </span>
             </div>
           </Reveal>

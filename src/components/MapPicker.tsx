@@ -22,14 +22,24 @@ type Props = {
   lng: number;
   onChange: (coords: { lat: number; lng: number }) => void;
   className?: string;
+  /** Locks panning so the pin keeps marking the exact recorded point. */
+  readOnly?: boolean;
+  initialZoom?: number;
 };
 
 /**
  * Lightweight slippy map built on OpenStreetMap raster tiles.
  * Drag to pan (the centre pin marks the delivery point), scroll buttons to zoom.
  */
-export function MapPicker({ lat, lng, onChange, className }: Props) {
-  const [zoom, setZoom] = useState(13);
+export function MapPicker({
+  lat,
+  lng,
+  onChange,
+  className,
+  readOnly = false,
+  initialZoom = 13,
+}: Props) {
+  const [zoom, setZoom] = useState(initialZoom);
   const [size, setSize] = useState({ w: 640, h: 320 });
   const [dragging, setDragging] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -106,13 +116,17 @@ export function MapPicker({ lat, lng, onChange, className }: Props) {
     <div className={cn("space-y-2", className)}>
       <div
         ref={containerRef}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={endDrag}
-        onPointerCancel={endDrag}
+        {...(readOnly
+          ? {}
+          : {
+              onPointerDown,
+              onPointerMove,
+              onPointerUp: endDrag,
+              onPointerCancel: endDrag,
+            })}
         className={cn(
           "relative h-72 w-full touch-none select-none overflow-hidden rounded-2xl border bg-muted",
-          dragging ? "cursor-grabbing" : "cursor-grab",
+          readOnly ? "cursor-default" : dragging ? "cursor-grabbing" : "cursor-grab",
         )}
       >
         {tiles.map((tile) => (

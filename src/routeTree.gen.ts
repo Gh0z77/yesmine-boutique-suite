@@ -16,13 +16,21 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as CartRouteImport } from './routes/cart'
 import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as ContactRouteImport } from './routes/contact'
+import { Route as TrackRouteImport } from './routes/track'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
+import { Route as AuthenticatedPanelRouteImport } from './routes/_authenticated/panel'
+import { Route as LegalDocRouteImport } from './routes/legal.$doc'
 import { Route as ShopIndexRouteImport } from './routes/shop.index'
 import { Route as ShopProductSlugRouteImport } from './routes/shop.$productSlug'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
+import { Route as AuthenticatedAdminCategoriesRouteImport } from './routes/_authenticated/admin.categories'
 import { Route as AuthenticatedAdminContentRouteImport } from './routes/_authenticated/admin.content'
+import { Route as AuthenticatedAdminInboxRouteImport } from './routes/_authenticated/admin.inbox'
 import { Route as AuthenticatedAdminOrdersRouteImport } from './routes/_authenticated/admin.orders'
+import { Route as AuthenticatedAdminPaymentsRouteImport } from './routes/_authenticated/admin.payments'
 import { Route as AuthenticatedAdminProductsRouteImport } from './routes/_authenticated/admin.products'
+import { Route as AuthenticatedAdminStaffRouteImport } from './routes/_authenticated/admin.staff'
+import { Route as AuthenticatedAdminTeamRouteImport } from './routes/_authenticated/admin.team'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -58,10 +66,25 @@ const ContactRoute = ContactRouteImport.update({
   path: '/contact',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TrackRoute = TrackRouteImport.update({
+  id: '/track',
+  path: '/track',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   id: '/admin',
   path: '/admin',
   getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedPanelRoute = AuthenticatedPanelRouteImport.update({
+  id: '/panel',
+  path: '/panel',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const LegalDocRoute = LegalDocRouteImport.update({
+  id: '/legal/$doc',
+  path: '/legal/$doc',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ShopIndexRoute = ShopIndexRouteImport.update({
   id: '/shop/',
@@ -78,16 +101,33 @@ const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthenticatedAdminRoute,
 } as any)
+const AuthenticatedAdminCategoriesRoute =
+  AuthenticatedAdminCategoriesRouteImport.update({
+    id: '/categories',
+    path: '/categories',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const AuthenticatedAdminContentRoute =
   AuthenticatedAdminContentRouteImport.update({
     id: '/content',
     path: '/content',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminInboxRoute = AuthenticatedAdminInboxRouteImport.update({
+  id: '/inbox',
+  path: '/inbox',
+  getParentRoute: () => AuthenticatedAdminRoute,
+} as any)
 const AuthenticatedAdminOrdersRoute =
   AuthenticatedAdminOrdersRouteImport.update({
     id: '/orders',
     path: '/orders',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminPaymentsRoute =
+  AuthenticatedAdminPaymentsRouteImport.update({
+    id: '/payments',
+    path: '/payments',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
 const AuthenticatedAdminProductsRoute =
@@ -96,6 +136,16 @@ const AuthenticatedAdminProductsRoute =
     path: '/products',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminStaffRoute = AuthenticatedAdminStaffRouteImport.update({
+  id: '/staff',
+  path: '/staff',
+  getParentRoute: () => AuthenticatedAdminRoute,
+} as any)
+const AuthenticatedAdminTeamRoute = AuthenticatedAdminTeamRouteImport.update({
+  id: '/team',
+  path: '/team',
+  getParentRoute: () => AuthenticatedAdminRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -104,12 +154,20 @@ export interface FileRoutesByFullPath {
   '/cart': typeof CartRoute
   '/checkout': typeof CheckoutRoute
   '/contact': typeof ContactRoute
+  '/track': typeof TrackRoute
   '/admin': typeof AuthenticatedAdminRouteWithChildren
+  '/panel': typeof AuthenticatedPanelRoute
+  '/legal/$doc': typeof LegalDocRoute
   '/shop/$productSlug': typeof ShopProductSlugRoute
   '/shop/': typeof ShopIndexRoute
+  '/admin/categories': typeof AuthenticatedAdminCategoriesRoute
   '/admin/content': typeof AuthenticatedAdminContentRoute
+  '/admin/inbox': typeof AuthenticatedAdminInboxRoute
   '/admin/orders': typeof AuthenticatedAdminOrdersRoute
+  '/admin/payments': typeof AuthenticatedAdminPaymentsRoute
   '/admin/products': typeof AuthenticatedAdminProductsRoute
+  '/admin/staff': typeof AuthenticatedAdminStaffRoute
+  '/admin/team': typeof AuthenticatedAdminTeamRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
 }
 export interface FileRoutesByTo {
@@ -119,11 +177,19 @@ export interface FileRoutesByTo {
   '/cart': typeof CartRoute
   '/checkout': typeof CheckoutRoute
   '/contact': typeof ContactRoute
+  '/track': typeof TrackRoute
+  '/panel': typeof AuthenticatedPanelRoute
+  '/legal/$doc': typeof LegalDocRoute
   '/shop/$productSlug': typeof ShopProductSlugRoute
   '/shop': typeof ShopIndexRoute
+  '/admin/categories': typeof AuthenticatedAdminCategoriesRoute
   '/admin/content': typeof AuthenticatedAdminContentRoute
+  '/admin/inbox': typeof AuthenticatedAdminInboxRoute
   '/admin/orders': typeof AuthenticatedAdminOrdersRoute
+  '/admin/payments': typeof AuthenticatedAdminPaymentsRoute
   '/admin/products': typeof AuthenticatedAdminProductsRoute
+  '/admin/staff': typeof AuthenticatedAdminStaffRoute
+  '/admin/team': typeof AuthenticatedAdminTeamRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
 }
 export interface FileRoutesById {
@@ -135,12 +201,20 @@ export interface FileRoutesById {
   '/cart': typeof CartRoute
   '/checkout': typeof CheckoutRoute
   '/contact': typeof ContactRoute
+  '/track': typeof TrackRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
+  '/_authenticated/panel': typeof AuthenticatedPanelRoute
+  '/legal/$doc': typeof LegalDocRoute
   '/shop/$productSlug': typeof ShopProductSlugRoute
   '/shop/': typeof ShopIndexRoute
+  '/_authenticated/admin/categories': typeof AuthenticatedAdminCategoriesRoute
   '/_authenticated/admin/content': typeof AuthenticatedAdminContentRoute
+  '/_authenticated/admin/inbox': typeof AuthenticatedAdminInboxRoute
   '/_authenticated/admin/orders': typeof AuthenticatedAdminOrdersRoute
+  '/_authenticated/admin/payments': typeof AuthenticatedAdminPaymentsRoute
   '/_authenticated/admin/products': typeof AuthenticatedAdminProductsRoute
+  '/_authenticated/admin/staff': typeof AuthenticatedAdminStaffRoute
+  '/_authenticated/admin/team': typeof AuthenticatedAdminTeamRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
 }
 export interface FileRouteTypes {
@@ -152,12 +226,20 @@ export interface FileRouteTypes {
     | '/cart'
     | '/checkout'
     | '/contact'
+    | '/track'
     | '/admin'
+    | '/panel'
+    | '/legal/$doc'
     | '/shop/$productSlug'
     | '/shop/'
+    | '/admin/categories'
     | '/admin/content'
+    | '/admin/inbox'
     | '/admin/orders'
+    | '/admin/payments'
     | '/admin/products'
+    | '/admin/staff'
+    | '/admin/team'
     | '/admin/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -167,11 +249,19 @@ export interface FileRouteTypes {
     | '/cart'
     | '/checkout'
     | '/contact'
+    | '/track'
+    | '/panel'
+    | '/legal/$doc'
     | '/shop/$productSlug'
     | '/shop'
+    | '/admin/categories'
     | '/admin/content'
+    | '/admin/inbox'
     | '/admin/orders'
+    | '/admin/payments'
     | '/admin/products'
+    | '/admin/staff'
+    | '/admin/team'
     | '/admin'
   id:
     | '__root__'
@@ -182,12 +272,20 @@ export interface FileRouteTypes {
     | '/cart'
     | '/checkout'
     | '/contact'
+    | '/track'
     | '/_authenticated/admin'
+    | '/_authenticated/panel'
+    | '/legal/$doc'
     | '/shop/$productSlug'
     | '/shop/'
+    | '/_authenticated/admin/categories'
     | '/_authenticated/admin/content'
+    | '/_authenticated/admin/inbox'
     | '/_authenticated/admin/orders'
+    | '/_authenticated/admin/payments'
     | '/_authenticated/admin/products'
+    | '/_authenticated/admin/staff'
+    | '/_authenticated/admin/team'
     | '/_authenticated/admin/'
   fileRoutesById: FileRoutesById
 }
@@ -199,6 +297,8 @@ export interface RootRouteChildren {
   CartRoute: typeof CartRoute
   CheckoutRoute: typeof CheckoutRoute
   ContactRoute: typeof ContactRoute
+  TrackRoute: typeof TrackRoute
+  LegalDocRoute: typeof LegalDocRoute
   ShopProductSlugRoute: typeof ShopProductSlugRoute
   ShopIndexRoute: typeof ShopIndexRoute
 }
@@ -254,12 +354,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ContactRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/track': {
+      id: '/track'
+      path: '/track'
+      fullPath: '/track'
+      preLoaderRoute: typeof TrackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/admin': {
       id: '/_authenticated/admin'
       path: '/admin'
       fullPath: '/admin'
       preLoaderRoute: typeof AuthenticatedAdminRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/panel': {
+      id: '/_authenticated/panel'
+      path: '/panel'
+      fullPath: '/panel'
+      preLoaderRoute: typeof AuthenticatedPanelRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/legal/$doc': {
+      id: '/legal/$doc'
+      path: '/legal/$doc'
+      fullPath: '/legal/$doc'
+      preLoaderRoute: typeof LegalDocRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/shop/': {
       id: '/shop/'
@@ -282,11 +403,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminIndexRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/categories': {
+      id: '/_authenticated/admin/categories'
+      path: '/categories'
+      fullPath: '/admin/categories'
+      preLoaderRoute: typeof AuthenticatedAdminCategoriesRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/content': {
       id: '/_authenticated/admin/content'
       path: '/content'
       fullPath: '/admin/content'
       preLoaderRoute: typeof AuthenticatedAdminContentRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/inbox': {
+      id: '/_authenticated/admin/inbox'
+      path: '/inbox'
+      fullPath: '/admin/inbox'
+      preLoaderRoute: typeof AuthenticatedAdminInboxRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
     '/_authenticated/admin/orders': {
@@ -296,6 +431,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminOrdersRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/payments': {
+      id: '/_authenticated/admin/payments'
+      path: '/payments'
+      fullPath: '/admin/payments'
+      preLoaderRoute: typeof AuthenticatedAdminPaymentsRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/products': {
       id: '/_authenticated/admin/products'
       path: '/products'
@@ -303,20 +445,44 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminProductsRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/staff': {
+      id: '/_authenticated/admin/staff'
+      path: '/staff'
+      fullPath: '/admin/staff'
+      preLoaderRoute: typeof AuthenticatedAdminStaffRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/team': {
+      id: '/_authenticated/admin/team'
+      path: '/team'
+      fullPath: '/admin/team'
+      preLoaderRoute: typeof AuthenticatedAdminTeamRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
   }
 }
 
 interface AuthenticatedAdminRouteChildren {
+  AuthenticatedAdminCategoriesRoute: typeof AuthenticatedAdminCategoriesRoute
   AuthenticatedAdminContentRoute: typeof AuthenticatedAdminContentRoute
+  AuthenticatedAdminInboxRoute: typeof AuthenticatedAdminInboxRoute
   AuthenticatedAdminOrdersRoute: typeof AuthenticatedAdminOrdersRoute
+  AuthenticatedAdminPaymentsRoute: typeof AuthenticatedAdminPaymentsRoute
   AuthenticatedAdminProductsRoute: typeof AuthenticatedAdminProductsRoute
+  AuthenticatedAdminStaffRoute: typeof AuthenticatedAdminStaffRoute
+  AuthenticatedAdminTeamRoute: typeof AuthenticatedAdminTeamRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
 }
 
 const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
+  AuthenticatedAdminCategoriesRoute: AuthenticatedAdminCategoriesRoute,
   AuthenticatedAdminContentRoute: AuthenticatedAdminContentRoute,
+  AuthenticatedAdminInboxRoute: AuthenticatedAdminInboxRoute,
   AuthenticatedAdminOrdersRoute: AuthenticatedAdminOrdersRoute,
+  AuthenticatedAdminPaymentsRoute: AuthenticatedAdminPaymentsRoute,
   AuthenticatedAdminProductsRoute: AuthenticatedAdminProductsRoute,
+  AuthenticatedAdminStaffRoute: AuthenticatedAdminStaffRoute,
+  AuthenticatedAdminTeamRoute: AuthenticatedAdminTeamRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
 }
 
@@ -325,10 +491,12 @@ const AuthenticatedAdminRouteWithChildren =
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRouteWithChildren
+  AuthenticatedPanelRoute: typeof AuthenticatedPanelRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRouteWithChildren,
+  AuthenticatedPanelRoute: AuthenticatedPanelRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
@@ -342,6 +510,8 @@ const rootRouteChildren: RootRouteChildren = {
   CartRoute: CartRoute,
   CheckoutRoute: CheckoutRoute,
   ContactRoute: ContactRoute,
+  TrackRoute: TrackRoute,
+  LegalDocRoute: LegalDocRoute,
   ShopProductSlugRoute: ShopProductSlugRoute,
   ShopIndexRoute: ShopIndexRoute,
 }

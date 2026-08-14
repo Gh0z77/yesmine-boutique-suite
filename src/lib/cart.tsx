@@ -62,7 +62,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
       const key = itemKey(item);
       const existing = prev.find((p) => itemKey(p) === key);
       if (existing) {
-        return prev.map((p) => (itemKey(p) === key ? { ...p, quantity: p.quantity + quantity } : p));
+        return prev.map((p) =>
+          itemKey(p) === key ? { ...p, quantity: p.quantity + quantity } : p,
+        );
       }
       return [...prev, { ...item, quantity }];
     });
@@ -98,7 +100,16 @@ export function useCart() {
   return ctx;
 }
 
-export const formatPrice = (value: number) =>
-  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(
-    value,
-  );
+/**
+ * Prices are held in Uzbek so'm.
+ *
+ * Formatted by hand rather than through Intl: Node's ICU renders uz-UZ groups
+ * with a narrow no-break space while Chrome's renders commas, so the server
+ * HTML and the first client render disagreed and React threw away the whole
+ * server-rendered page on every route showing a price.
+ */
+export const formatPrice = (value: number) => {
+  const whole = Math.round(Math.abs(value)).toString();
+  const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+  return `${value < 0 ? "-" : ""}${grouped} so'm`;
+};

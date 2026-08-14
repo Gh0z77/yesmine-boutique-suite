@@ -1,5 +1,15 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { CheckCircle2, CreditCard, Loader2, MapPin, ShieldCheck, User } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import {
+  AlertCircle,
+  Banknote,
+  CheckCircle2,
+  CreditCard,
+  Loader2,
+  MapPin,
+  ShieldCheck,
+  User,
+} from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -10,18 +20,34 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { supabase } from "@/integrations/supabase/client";
 import { formatPrice, itemKey, useCart } from "@/lib/cart";
+import {
+  DEMO_DECLINE_CARD,
+  DEMO_SUCCESS_CARD,
+  formatCardNumber,
+  formatExpiry,
+  paymeCheckoutUrl,
+  placeOrder,
+  placeOrderViaPayme,
+  processDemoPayment,
+  type PaymentMethod,
+  type PlacedOrder,
+} from "@/lib/checkout";
+import { imageSrc, THUMB_WIDTHS, imageSrcSet } from "@/lib/images";
 import { useI18n } from "@/lib/i18n";
+import { paymentConfigQuery, shippingFor, shopSettingsQuery } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/checkout")({
   head: () => ({
     meta: [
-      { title: "Checkout — Yesmine" },
-      { name: "description", content: "Complete your Yesmine order: delivery details, map pin and demo payment." },
-      { property: "og:title", content: "Checkout — Yesmine" },
-      { property: "og:description", content: "Complete your Yesmine order securely." },
+      { title: "Buyurtmani rasmiylashtirish — Yesmine" },
+      {
+        name: "description",
+        content: "Buyurtmani yakunlang: yetkazib berish ma'lumotlari, xaritadagi manzil va to'lov.",
+      },
+      { property: "og:title", content: "Buyurtmani rasmiylashtirish — Yesmine" },
+      { property: "og:description", content: "Buyurtmangizni xavfsiz yakunlang." },
       { name: "robots", content: "noindex" },
     ],
   }),
@@ -46,18 +72,10 @@ const cardSchema = z.object({
 const STEPS = ["customer", "delivery", "payment", "confirm"] as const;
 type Step = (typeof STEPS)[number];
 
-function orderNumber() {
-  const now = new Date();
-  const stamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(
-    now.getDate(),
-  ).padStart(2, "0")}`;
-  return `YSM-${stamp}-${Math.floor(1000 + Math.random() * 9000)}`;
-}
-
 function CheckoutPage() {
   const { t } = useI18n();
   const { items, subtotal, clear } = useCart();
-  const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const [step, setStep] = useState<Step>("customer");
   const [details, setDetails] = useState({
@@ -70,10 +88,16 @@ function CheckoutPage() {
   const [coords, setCoords] = useState({ lat: 41.3111, lng: 69.2797 });
   const [card, setCard] = useState({ number: "", name: "", expiry: "", cvc: "" });
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [submitting, setSubmitting] = useState(false);
-  const [placed, setPlaced] = useState<{ number: string; total: number } | null>(null);
+  const [stage, setStage] = useState<"idle" | "authorising" | "placing">("idle");
+  const [declined, setDeclined] = useState<string | null>(null);
+  const [placed, setPlaced] = useState<PlacedOrder | null>(null);
+  // Cash on delivery is the default here, because it's what most shoppers use.
+  const [method, setMethod] = useState<PaymentMethod>("cod");
 
-  const shipping = subtotal > 200 || subtotal === 0 ? 0 : 15;
+  const { data: settings } = useQuery(shopSettingsQuery);
+  const { data: payment } = useQuery(paymentConfigQuery);
+  const submitting = stage !== "idle";
+  const shipping = settings ? shippingFor(subtotal, settings) : 0;
   const total = subtotal + shipping;
 
   if (!placed && items.length === 0) {
@@ -94,11 +118,25 @@ function CheckoutPage() {
           <CheckCircle2 className="mx-auto h-14 w-14 text-primary" />
           <h1 className="mt-6 font-display text-4xl">{t("checkout.thanks")}</h1>
           <p className="mt-3 text-muted-foreground">
-            Order <span className="font-medium text-foreground">{placed.number}</span> ·{" "}
+            Order <span className="font-medium text-foreground">{placed.order_number}</span> ·{" "}
             {formatPrice(placed.total)}
           </p>
-          <p className="mt-2 text-sm text-muted-foreground">
-            We'll call you shortly to confirm delivery to your pinned location.
+          <dl className="mx-auto mt-6 max-w-xs space-y-1.5 rounded-2xl border bg-card p-5 text-left text-sm">
+            <div className="flex justify-between">
+              <dt className="text-muted-foreground">{t("cart.subtotal")}</dt>
+              <dd>{formatPrice(placed.subtotal)}</dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-muted-foreground">{t("cart.shipping")}</dt>
+              <dd>{placed.shipping === 0 ? t("cart.free") : formatPrice(placed.shipping)}</dd>
+            </div>
+            <div className="flex justify-between border-t pt-1.5 font-medium">
+              <dt>{t("checkout.totalPaid")}</dt>
+              <dd>{formatPrice(placed.total)}</dd>
+            </div>
+          </dl>
+          <p className="mt-4 text-sm text-muted-foreground">
+            {placed.payment_method === "cod" ? t("checkout.codConfirm") : t("checkout.nextSteps")}
           </p>
           <Button variant="hero" size="lg" className="mt-8" asChild>
             <Link to="/shop">{t("nav.shop")}</Link>
@@ -121,61 +159,82 @@ function CheckoutPage() {
   };
 
   const submitOrder = async () => {
-    const parsed = cardSchema.safeParse({ ...card, number: card.number.replace(/\s/g, "") });
-    if (!parsed.success) {
-      const next: Record<string, string> = {};
-      for (const issue of parsed.error.issues) next[`card_${String(issue.path[0])}`] = issue.message;
-      setErrors(next);
-      return;
+    setDeclined(null);
+    let cardLast4 = "";
+
+    // A configured gateway replaces the simulation entirely: the order is
+    // created unpaid and Payme decides, on its own callback, when it is paid.
+    if (method === "card" && payment?.live && payment.merchant_id) {
+      setStage("placing");
+      try {
+        const order = await placeOrderViaPayme({ details, coords, items });
+        clear();
+        window.location.href = paymeCheckoutUrl({
+          merchantId: payment.merchant_id,
+          orderNumber: order.order_number,
+          totalSom: order.total,
+          returnUrl: `${window.location.origin}/track`,
+        });
+        return;
+      } catch (e) {
+        const message = e instanceof Error ? e.message : "We couldn't place the order.";
+        setStage("idle");
+        setDeclined(message);
+        toast.error(message);
+        return;
+      }
     }
-    setErrors({});
-    setSubmitting(true);
+
+    // Cash orders skip authorisation entirely — the courier collects on arrival.
+    if (method === "card") {
+      const parsed = cardSchema.safeParse({ ...card, number: card.number.replace(/\s/g, "") });
+      if (!parsed.success) {
+        const next: Record<string, string> = {};
+        for (const issue of parsed.error.issues)
+          next[`card_${String(issue.path[0])}`] = issue.message;
+        setErrors(next);
+        return;
+      }
+      setErrors({});
+
+      setStage("authorising");
+      const authorised = await processDemoPayment({
+        number: parsed.data.number,
+        expiry: parsed.data.expiry,
+      });
+      if (!authorised.ok) {
+        setStage("idle");
+        setDeclined(authorised.message);
+        toast.error(authorised.message);
+        return;
+      }
+      cardLast4 = authorised.last4;
+    } else {
+      setErrors({});
+    }
+
+    // Let the database price the basket, reserve stock and number the order.
+    setStage("placing");
     try {
-      const number = orderNumber();
-      const { data: order, error } = await supabase
-        .from("orders")
-        .insert({
-          order_number: number,
-          customer_name: details.customer_name.trim(),
-          phone: details.phone.trim(),
-          email: details.email.trim() || null,
-          address: details.address.trim(),
-          note: details.note.trim() || null,
-          lat: coords.lat,
-          lng: coords.lng,
-          subtotal,
-          shipping,
-          total,
-          status: "pending",
-          payment_status: "paid",
-          payment_ref: `DEMO-${parsed.data.number.slice(-4)}`,
-        })
-        .select("id")
-        .single();
-      if (error) throw error;
-
-      const { error: itemsError } = await supabase.from("order_items").insert(
-        items.map((i) => ({
-          order_id: order.id,
-          product_id: i.productId,
-          product_name: i.name,
-          price: i.price,
-          quantity: i.quantity,
-          size: i.size,
-          color: i.color,
-          image_url: i.image,
-        })),
-      );
-      if (itemsError) throw itemsError;
-
-      setPlaced({ number, total });
+      const order = await placeOrder({
+        details,
+        coords,
+        cardLast4,
+        items,
+        paymentMethod: method,
+      });
+      setPlaced(order);
       clear();
-      void navigate;
+      // Stock moved — refresh anything showing product availability.
+      void queryClient.invalidateQueries({ queryKey: ["products"] });
+      void queryClient.invalidateQueries({ queryKey: ["product"] });
     } catch (e) {
+      const message = e instanceof Error ? e.message : "We couldn't place the order.";
       console.error(e);
-      toast.error("We couldn't place the order. Please try again.");
+      setDeclined(message);
+      toast.error(message);
     } finally {
-      setSubmitting(false);
+      setStage("idle");
     }
   };
 
@@ -248,7 +307,7 @@ function CheckoutPage() {
                     onChange={(e) => setDetails((d) => ({ ...d, address: e.target.value }))}
                   />
                 </Field>
-                <Field label="Order note (optional)" error={errors["note"]}>
+                <Field label={t("checkout.note")} error={errors["note"]}>
                   <Textarea
                     value={details.note}
                     maxLength={500}
@@ -263,7 +322,7 @@ function CheckoutPage() {
                     if (validateDetails()) setStep("delivery");
                   }}
                 >
-                  Continue to delivery
+                  {t("checkout.toDelivery")}
                 </Button>
               </div>
             ) : null}
@@ -276,14 +335,14 @@ function CheckoutPage() {
                 <p className="text-sm text-muted-foreground">{t("checkout.pin")}</p>
                 <MapPicker lat={coords.lat} lng={coords.lng} onChange={setCoords} />
                 <p className="text-sm text-muted-foreground">
-                  Pinned at {coords.lat.toFixed(5)}, {coords.lng.toFixed(5)}
+                  {t("checkout.pinnedAt")} {coords.lat.toFixed(5)}, {coords.lng.toFixed(5)}
                 </p>
                 <div className="flex gap-3">
                   <Button variant="soft" onClick={() => setStep("customer")}>
                     Back
                   </Button>
                   <Button variant="hero" size="lg" onClick={() => setStep("payment")}>
-                    Continue to payment
+                    {t("checkout.toPayment")}
                   </Button>
                 </div>
               </div>
@@ -294,54 +353,105 @@ function CheckoutPage() {
                 <h2 className="flex items-center gap-2 font-display text-2xl">
                   <CreditCard className="h-5 w-5 text-primary" /> {t("checkout.payment")}
                 </h2>
-                <p className="flex items-center gap-2 rounded-2xl bg-accent px-4 py-3 text-sm text-accent-foreground">
-                  <ShieldCheck className="h-4 w-4" /> Demo payment — no real card is charged. Try 4242
-                  4242 4242 4242.
-                </p>
-                <Field label="Card number" error={errors["card_number"]}>
-                  <Input
-                    inputMode="numeric"
-                    value={card.number}
-                    maxLength={19}
-                    placeholder="4242 4242 4242 4242"
-                    onChange={(e) =>
-                      setCard((c) => ({ ...c, number: e.target.value.replace(/[^\d]/g, "").slice(0, 16) }))
-                    }
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <MethodCard
+                    active={method === "cod"}
+                    icon={Banknote}
+                    title={t("checkout.methodCod")}
+                    body={t("checkout.codNote")}
+                    onClick={() => setMethod("cod")}
                   />
-                </Field>
-                <Field label="Name on card" error={errors["card_name"]}>
-                  <Input
-                    value={card.name}
-                    maxLength={100}
-                    onChange={(e) => setCard((c) => ({ ...c, name: e.target.value }))}
+                  <MethodCard
+                    active={method === "card"}
+                    icon={CreditCard}
+                    title={payment?.live ? t("checkout.methodPayme") : t("checkout.methodCard")}
+                    body={payment?.live ? t("checkout.paymeNote") : t("checkout.demoNote")}
+                    onClick={() => setMethod("card")}
                   />
-                </Field>
-                <div className="grid gap-5 sm:grid-cols-2">
-                  <Field label="Expiry (MM/YY)" error={errors["card_expiry"]}>
-                    <Input
-                      value={card.expiry}
-                      maxLength={5}
-                      placeholder="04/28"
-                      onChange={(e) => setCard((c) => ({ ...c, expiry: e.target.value }))}
-                    />
-                  </Field>
-                  <Field label="CVC" error={errors["card_cvc"]}>
-                    <Input
-                      inputMode="numeric"
-                      value={card.cvc}
-                      maxLength={4}
-                      placeholder="123"
-                      onChange={(e) => setCard((c) => ({ ...c, cvc: e.target.value.replace(/\D/g, "") }))}
-                    />
-                  </Field>
                 </div>
+
+                {declined ? (
+                  <p className="flex items-start gap-2 rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" /> {declined}
+                  </p>
+                ) : null}
+
+                {method === "card" && !payment?.live ? (
+                  <>
+                    <div className="space-y-1.5 rounded-2xl bg-accent px-4 py-3 text-sm text-accent-foreground">
+                      <p className="flex items-center gap-2">
+                        <ShieldCheck className="h-4 w-4" /> {t("checkout.demoNote")}
+                      </p>
+                      <p className="text-accent-foreground/80">
+                        {t("checkout.approved")}:{" "}
+                        <span className="font-mono">{DEMO_SUCCESS_CARD}</span> ·{" "}
+                        {t("checkout.declined")}:{" "}
+                        <span className="font-mono">{DEMO_DECLINE_CARD}</span>
+                      </p>
+                    </div>
+
+                    <Field label={t("checkout.cardNumber")} error={errors["card_number"]}>
+                      <Input
+                        inputMode="numeric"
+                        autoComplete="cc-number"
+                        value={formatCardNumber(card.number)}
+                        maxLength={19}
+                        placeholder={DEMO_SUCCESS_CARD}
+                        onChange={(e) =>
+                          setCard((c) => ({
+                            ...c,
+                            number: e.target.value.replace(/\D/g, "").slice(0, 16),
+                          }))
+                        }
+                      />
+                    </Field>
+                    <Field label={t("checkout.cardName")} error={errors["card_name"]}>
+                      <Input
+                        value={card.name}
+                        maxLength={100}
+                        autoComplete="cc-name"
+                        onChange={(e) => setCard((c) => ({ ...c, name: e.target.value }))}
+                      />
+                    </Field>
+                    <div className="grid gap-5 sm:grid-cols-2">
+                      <Field label={t("checkout.expiry")} error={errors["card_expiry"]}>
+                        <Input
+                          value={card.expiry}
+                          inputMode="numeric"
+                          maxLength={5}
+                          autoComplete="cc-exp"
+                          placeholder="04/28"
+                          onChange={(e) =>
+                            setCard((c) => ({ ...c, expiry: formatExpiry(e.target.value) }))
+                          }
+                        />
+                      </Field>
+                      <Field label={t("checkout.cvc")} error={errors["card_cvc"]}>
+                        <Input
+                          inputMode="numeric"
+                          value={card.cvc}
+                          maxLength={4}
+                          autoComplete="cc-csc"
+                          placeholder="123"
+                          onChange={(e) =>
+                            setCard((c) => ({ ...c, cvc: e.target.value.replace(/\D/g, "") }))
+                          }
+                        />
+                      </Field>
+                    </div>
+                  </>
+                ) : null}
                 <div className="flex gap-3">
-                  <Button variant="soft" onClick={() => setStep("delivery")}>
-                    Back
+                  <Button variant="soft" disabled={submitting} onClick={() => setStep("delivery")}>
+                    {t("common.back")}
                   </Button>
                   <Button variant="hero" size="xl" disabled={submitting} onClick={submitOrder}>
                     {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                    {t("checkout.pay")} · {formatPrice(total)}
+                    {stage === "authorising"
+                      ? t("checkout.authorising")
+                      : stage === "placing"
+                        ? t("checkout.placing")
+                        : `${method === "cod" ? t("checkout.placeOrder") : t("checkout.pay")} · ${formatPrice(total)}`}
                   </Button>
                 </div>
               </div>
@@ -349,11 +459,19 @@ function CheckoutPage() {
           </div>
 
           <aside className="h-fit space-y-4 rounded-3xl border bg-card p-6 shadow-soft lg:sticky lg:top-24">
-            <h2 className="font-display text-2xl">Order</h2>
+            <h2 className="font-display text-2xl">{t("checkout.order")}</h2>
             <ul className="space-y-3">
               {items.map((i) => (
                 <li key={itemKey(i)} className="flex gap-3">
-                  <img src={i.image ?? ""} alt={i.name} className="h-16 w-12 rounded-lg object-cover" />
+                  <img
+                    src={imageSrc(i.image, 160)}
+                    srcSet={imageSrcSet(i.image, THUMB_WIDTHS)}
+                    sizes="48px"
+                    loading="lazy"
+                    decoding="async"
+                    alt={i.name}
+                    className="h-16 w-12 rounded-lg object-cover"
+                  />
                   <div className="flex-1 text-sm">
                     <p className="font-medium">{i.name}</p>
                     <p className="text-muted-foreground">
@@ -370,11 +488,11 @@ function CheckoutPage() {
                 <span>{formatPrice(subtotal)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Shipping</span>
-                <span>{shipping === 0 ? "Free" : formatPrice(shipping)}</span>
+                <span className="text-muted-foreground">{t("cart.shipping")}</span>
+                <span>{shipping === 0 ? t("cart.free") : formatPrice(shipping)}</span>
               </div>
               <div className="flex items-baseline justify-between border-t pt-3">
-                <span className="font-medium">Total</span>
+                <span className="font-medium">{t("cart.total")}</span>
                 <span className="font-display text-2xl text-primary">{formatPrice(total)}</span>
               </div>
             </div>
@@ -382,6 +500,39 @@ function CheckoutPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+/** One choice in the payment method picker. */
+function MethodCard({
+  active,
+  icon: Icon,
+  title,
+  body,
+  onClick,
+}: {
+  active: boolean;
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  body: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={cn(
+        "flex items-start gap-3 rounded-2xl border p-4 text-left transition-all",
+        active ? "border-primary bg-accent shadow-soft" : "border-border hover:border-primary/40",
+      )}
+    >
+      <Icon className="mt-0.5 h-5 w-5 text-primary" />
+      <span>
+        <span className="block font-medium">{title}</span>
+        <span className="block text-xs text-muted-foreground">{body}</span>
+      </span>
+    </button>
   );
 }
 

@@ -4,6 +4,7 @@ import { Minus, Plus, ShoppingBag, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { formatPrice, itemKey, useCart } from "@/lib/cart";
+import { imageSrc, imageSrcSet, THUMB_WIDTHS } from "@/lib/images";
 import { useI18n } from "@/lib/i18n";
 
 export function CartDrawer() {
@@ -33,7 +34,11 @@ export function CartDrawer() {
                 return (
                   <div key={key} className="flex gap-3 rounded-2xl border bg-card p-3">
                     <img
-                      src={item.image ?? ""}
+                      src={imageSrc(item.image, 160)}
+                      srcSet={imageSrcSet(item.image, THUMB_WIDTHS)}
+                      sizes="80px"
+                      loading="lazy"
+                      decoding="async"
                       alt={item.name}
                       className="h-24 w-20 rounded-xl object-cover"
                     />
@@ -89,10 +94,21 @@ export function CartDrawer() {
                 <span className="text-muted-foreground">{t("cart.subtotal")}</span>
                 <span className="font-display text-xl text-primary">{formatPrice(subtotal)}</span>
               </div>
-              <Button variant="hero" size="lg" className="w-full" asChild onClick={() => setDrawerOpen(false)}>
+              <Button
+                variant="hero"
+                size="lg"
+                className="w-full"
+                asChild
+                onClick={() => setDrawerOpen(false)}
+              >
                 <Link to="/checkout">{t("common.checkout")}</Link>
               </Button>
-              <Button variant="soft" className="w-full" asChild onClick={() => setDrawerOpen(false)}>
+              <Button
+                variant="soft"
+                className="w-full"
+                asChild
+                onClick={() => setDrawerOpen(false)}
+              >
                 <Link to="/cart">{t("cart.title")}</Link>
               </Button>
             </div>

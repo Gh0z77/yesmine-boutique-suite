@@ -1,0 +1,29 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+
+  "//": "Nitro Cloudflare uchun yig'ishni sukut bo'yicha tanlaydi. Vercel esa .vercel/output kutadi, shuning uchun preset shu yerda aniq ko'rsatiladi — aks holda deploy o'tadi-yu, sayt ochilmaydi.",
+  "buildCommand": "NITRO_PRESET=vercel npm run build",
+
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+        {
+          "key": "Strict-Transport-Security",
+          "value": "max-age=31536000; includeSubDomains"
+        }
+      ]
+    },
+    {
+      "//": "Admin va to'lov sahifalari qidiruvga tushmasligi kerak.",
+      "source": "/admin/(.*)",
+      "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }]
+    },
+    {
+      "source": "/auth",
+      "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }]
+    }
+  ]
+}

@@ -43,3 +43,6 @@ xodim-main.zip
 
 # Reference project, kept locally for study only
 xodim-main/
+
+# Vercel build output
+.vercel
